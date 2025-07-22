@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Workout Logger">
+    <title>Workout Logger</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1a;
+            color: #ffffff;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding: 20px 0;
+            border-bottom: 2px solid #333;
+        }
+
+        .header h1 {
+            color: #4a90e2;
+            font-size: 1.8rem;
+        }
+
+        .theme-toggle {
+            background: #4a90e2;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 20px;
+            color: white;
+            cursor: pointer;
+            font-size: 1.2rem;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #cccccc;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #444;
+            border-radius: 8px;
+            background: #2a2a2a;
+            color: #ffffff;
+            font-size: 16px;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .sets-container {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .set-item {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr auto;
+            gap: 10px;
+            margin-bottom: 15px;
+            padding: 15px;
+            background: #333;
+            border-radius: 8px;
+            align-items: center;
+        }
+
+        .set-item input {
+            padding: 8px;
+            border: 1px solid #555;
+            border-radius: 5px;
+            background: #1a1a1a;
+            color: #ffffff;
+            text-align: center;
+        }
+
+        .remove-set {
+            background: #e74c3c;
+            border: none;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        .btn {
+            background: #4a90e2;
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            width: 100%;
+            margin: 10px 0;
+            transition: background 0.3s ease;
+        }
+
+        .btn:hover {
+            background: #357abd;
+        }
+
+        .btn-success {
+            background: #27ae60;
+        }
+
+        .btn-success:hover {
+            background: #219a52;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        .workout-history {
+            margin-top: 40px;
+        }
+
+        .workout-item {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border-left: 4px solid #4a90e2;
+        }
+
+        .workout-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .workout-date {
+            font-weight: bold;
+            color: #4a90e2;
+        }
+
+        .muscle-group {
+            background: #4a90e2;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.9rem;
+        }
+
+        .exercise-details {
+            margin-top: 10px;
+        }
+
+        .set-details {
+            font-size: 0.9rem;
+            color: #cccccc;
+            margin-top: 5px;
+        }
+
+        .data-management {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .light-theme {
+            background: #ffffff;
+            color: #333333;
+        }
+
+        .light-theme .form-group input,
+        .light-theme .form-group select,
+        .light-theme .form-group textarea {
+            background: #f5f5f5;
+            color: #333333;
+            border-color: #ddd;
+        }
+
+        .light-theme .sets-container,
+        .light-theme .workout-item {
+            background: #f8f9fa;
+        }
+
+        .light-theme .set-item {
+            background: #e9ecef;
+        }
+
+        .light-theme .set-item input {
+            background: #ffffff;
+            color: #333333;
+            border-color: #ddd;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .set-item {
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+            
+            .data-management {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Workout Logger</h1>
+            <button class="theme-toggle" onclick="toggleTheme()">☀️ / 🌙</button>
+        </div>
+
+        <div class="workout-form">
+            <h2>Log Workout</h2>
+            
+            <div class="form-group">
+                <label for="workoutDate">Date</label>
+                <input type="date" id="workoutDate">
+            </div>
+
+            <div class="form-group">
+                <label for="muscleGroup">Muscle Group</label>
+                <select id="muscleGroup">
+                    <option value="">-- Select Muscle Group --</option>
+                    <option value="Biceps">Biceps</option>
+                    <option value="Triceps">Triceps</option>
+                    <option value="Shoulders">Shoulders</option>
+                    <option value="Chest">Chest</option>
+                    <option value="Back">Back</option>
+                    <option value="Traps">Traps</option>
+                    <option value="Legs">Legs</option>
+                    <option value="Abs">Abs</option>
+                    <option value="Glutes">Glutes</option>
+                    <option value="Full Body">Full Body</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="exerciseName">Exercise Name</label>
+                <input type="text" id="exerciseName" placeholder="e.g., Bench Press">
+            </div>
+
+            <div class="form-group">
+                <label for="equipment">Equipment Used</label>
+                <input type="text" id="equipment" placeholder="e.g., Barbell, Dumbbells">
+            </div>
+
+            <div class="form-group">
+                <label for="notes">Notes (optional)</label>
+                <textarea id="notes" placeholder="Any additional notes..."></textarea>
+            </div>
+
+            <div class="sets-container">
+                <h3>Sets</h3>
+                <div id="setsContainer">
+                    <!-- Sets will be added here -->
+                </div>
+                <button class="btn" onclick="addSet()">➕ Add Set</button>
+            </div>
+
+            <button class="btn btn-success" onclick="finishExercise()">✅ Finish Exercise</button>
+        </div>
+
+        <div class="data-management">
+            <button class="btn" onclick="exportData()">📤 Export CSV</button>
+            <button class="btn" onclick="importData()">📥 Import CSV</button>
+            <button class="btn btn-danger" onclick="clearAllData()">🗑️ Clear Data</button>
+            <input type="file" id="fileInput" accept=".csv" style="display: none;" onchange="handleFileImport(event)">
+        </div>
+
+        <div class="workout-history">
+            <h2>Workout History</h2>
+            <div id="historyContainer">
+                <p style="text-align: center; color: #888; margin: 40px 0;">
+                    No workouts logged yet. Start by adding your first exercise!
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let workouts = JSON.parse(localStorage.getItem('workouts')) || [];
+        let currentSets = [];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('workoutDate').valueAsDate = new Date();
+            displayHistory();
+            addSet(); // Start with one set
+        });
+
+        function toggleTheme() {
+            document.body.classList.toggle('light-theme');
+            localStorage.setItem('theme', document.body.classList.contains('light-theme') ? 'light' : 'dark');
+        }
+
+        function addSet() {
+            const setNumber = currentSets.length + 1;
+            const setDiv = document.createElement('div');
+            setDiv.className = 'set-item';
+            setDiv.innerHTML = `
+                <input type="number" placeholder="Reps" min="0" data-type="reps">
+                <input type="number" placeholder="Weight" min="0" step="0.5" data-type="weight">
+                <input type="number" placeholder="Rest (sec)" min="0" data-type="rest">
+                <button class="remove-set" onclick="removeSet(this)">×</button>
+            `;
+            document.getElementById('setsContainer').appendChild(setDiv);
+            currentSets.push({reps: '', weight: '', rest: ''});
+        }
+
+        function removeSet(button) {
+            if (currentSets.length > 1) {
+                button.parentElement.remove();
+                currentSets.pop();
+            }
+        }
+
+        function finishExercise() {
+            const date = document.getElementById('workoutDate').value;
+            const muscleGroup = document.getElementById('muscleGroup').value;
+            const exerciseName = document.getElementById('exerciseName').value;
+            const equipment = document.getElementById('equipment').value;
+            const notes = document.getElementById('notes').value;
+
+            if (!date || !muscleGroup || !exerciseName) {
+                alert('Please fill in Date, Muscle Group, and Exercise Name');
+                return;
+            }
+
+            // Collect set data
+            const setInputs = document.querySelectorAll('.set-item');
+            const sets = [];
+            
+            setInputs.forEach((setDiv, index) => {
+                const reps = setDiv.querySelector('[data-type="reps"]').value;
+                const weight = setDiv.querySelector('[data-type="weight"]').value;
+                const rest = setDiv.querySelector('[data-type="rest"]').value;
+                
+                if (reps) {
+                    sets.push({
+                        setNumber: index + 1,
+                        reps: reps || '0',
+                        weight: weight || '0',
+                        rest: rest || '0'
+                    });
+                }
+            });
+
+            if (sets.length === 0) {
+                alert('Please add at least one set with reps');
+                return;
+            }
+
+            // Save workout
+            const workout = {
+                date,
+                muscleGroup,
+                exerciseName,
+                equipment,
+                notes,
+                sets,
+                timestamp: new Date().getTime()
+            };
+
+            workouts.push(workout);
+            localStorage.setItem('workouts', JSON.stringify(workouts));
+
+            // Clear form
+            document.getElementById('exerciseName').value = '';
+            document.getElementById('equipment').value = '';
+            document.getElementById('notes').value = '';
+            document.getElementById('setsContainer').innerHTML = '';
+            currentSets = [];
+            addSet();
+
+            displayHistory();
+            alert('Exercise saved successfully!');
+        }
+
+        function displayHistory() {
+            const container = document.getElementById('historyContainer');
+            
+            if (workouts.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #888; margin: 40px 0;">No workouts logged yet. Start by adding your first exercise!</p>';
+                return;
+            }
+
+            // Sort workouts: by muscle group, then by date descending
+            const sortedWorkouts = [...workouts].sort((a, b) => {
+                if (a.muscleGroup !== b.muscleGroup) {
+                    return a.muscleGroup.localeCompare(b.muscleGroup);
+                }
+                return new Date(b.date) - new Date(a.date);
+            });
+
+            container.innerHTML = sortedWorkouts.map(workout => `
+                <div class="workout-item">
+                    <div class="workout-header">
+                        <span class="workout-date">${workout.date}</span>
+                        <span class="muscle-group">${workout.muscleGroup}</span>
+                    </div>
+                    <div class="exercise-details">
+                        <strong>${workout.exerciseName}</strong>
+                        ${workout.equipment ? ` - ${workout.equipment}` : ''}
+                        ${workout.notes ? `<br><em>${workout.notes}</em>` : ''}
+                    </div>
+                    <div class="set-details">
+                        ${workout.sets.map(set => 
+                            `Set ${set.setNumber}: ${set.reps} reps × ${set.weight}${set.weight > 0 ? 'lbs' : ''} (${set.rest}s rest)`
+                        ).join('<br>')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function exportData() {
+            if (workouts.length === 0) {
+                alert('No workout data to export');
+                return;
+            }
+
+            // Sort workouts by muscle group, then by date descending
+            const sortedWorkouts = [...workouts].sort((a, b) => {
+                if (a.muscleGroup !== b.muscleGroup) {
+                    return a.muscleGroup.localeCompare(b.muscleGroup);
+                }
+                return new Date(b.date) - new Date(a.date);
+            });
+
+            const csvHeader = 'Muscle Group,Date,Exercise Name,Equipment,Set #,Reps,Weight,Rest Time,Notes\n';
+            const csvData = sortedWorkouts.map(workout => 
+                workout.sets.map(set => 
+                    `${workout.muscleGroup},${workout.date},${workout.exerciseName},"${workout.equipment}",${set.setNumber},${set.reps},${set.weight},${set.rest},"${workout.notes}"`
+                ).join('\n')
+            ).join('\n');
+
+            const csv = csvHeader + csvData;
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `workout_data_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            
+            window.URL.revokeObjectURL(url);
+        }
+
+        function importData() {
+            document.getElementById('fileInput').click();
+        }
+
+        function handleFileImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const csv = e.target.result;
+                    const lines = csv.split('\n');
+                    const importedWorkouts = [];
+                    
+                    // Skip header row
+                    for (let i = 1; i < lines.length; i++) {
+                        if (lines[i].trim()) {
+                            const data = parseCSVLine(lines[i]);
+                            if (data.length >= 9) {
+                                const [muscleGroup, date, exerciseName, equipment, setNum, reps, weight, rest, notes] = data;
+                                
+                                let workout = importedWorkouts.find(w => 
+                                    w.date === date && w.exerciseName === exerciseName && w.muscleGroup === muscleGroup
+                                );
+                                
+                                if (!workout) {
+                                    workout = {
+                                        date,
+                                        muscleGroup,
+                                        exerciseName,
+                                        equipment: equipment.replace(/"/g, ''),
+                                        notes: notes.replace(/"/g, ''),
+                                        sets: [],
+                                        timestamp: new Date().getTime()
+                                    };
+                                    importedWorkouts.push(workout);
+                                }
+                                
+                                workout.sets.push({
+                                    setNumber: parseInt(setNum),
+                                    reps: reps,
+                                    weight: weight,
+                                    rest: rest
+                                });
+                            }
+                        }
+                    }
+                    
+                    workouts = workouts.concat(importedWorkouts);
+                    localStorage.setItem('workouts', JSON.stringify(workouts));
+                    displayHistory();
+                    alert(`Successfully imported ${importedWorkouts.length} workouts!`);
+                } catch (error) {
+                    alert('Error importing file. Please check the CSV format.');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function parseCSVLine(line) {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+            
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                    result.push(current);
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            result.push(current);
+            return result;
+        }
+
+        function clearAllData() {
+            if (confirm('Are you sure you want to delete all workout data? This cannot be undone.')) {
+                workouts = [];
+                localStorage.setItem('workouts', JSON.stringify(workouts));
+                displayHistory();
+                alert('All data cleared successfully!');
+            }
+        }
+
+        // Load saved theme
+        if (localStorage.getItem('theme') === 'light') {
+            document.body.classList.add('light-theme');
+        }
+    </script>
+</body>
+</html>
