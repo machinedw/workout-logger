@@ -42,14 +42,26 @@
             font-size: 1.8rem;
         }
 
-        .theme-toggle {
+        .header-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .theme-toggle, .unit-toggle {
             background: #4a90e2;
             border: none;
             padding: 10px 15px;
             border-radius: 20px;
             color: white;
             cursor: pointer;
-            font-size: 1.2rem;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .unit-toggle {
+            background: #27ae60;
+            min-width: 50px;
         }
 
         .session-status {
@@ -138,35 +150,91 @@
             margin: 20px 0;
         }
 
-        .set-item {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr auto;
-            gap: 10px;
-            margin-bottom: 15px;
-            padding: 15px;
+        .set-group-item {
             background: #333;
+            padding: 20px;
             border-radius: 8px;
-            align-items: center;
+            margin-bottom: 20px;
+            border-left: 3px solid #f39c12;
         }
 
-        .set-item input {
+        .set-group-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .set-group-title {
+            font-weight: bold;
+            color: #f39c12;
+        }
+
+        .set-group-inputs {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .input-group label {
+            font-size: 0.85rem;
+            color: #aaa;
+            margin-bottom: 5px;
+        }
+
+        .input-group input {
             padding: 8px;
             border: 1px solid #555;
             border-radius: 5px;
             background: #1a1a1a;
             color: #ffffff;
             text-align: center;
+            margin: 0;
         }
 
-        .remove-set {
+        .weight-input-wrapper {
+            position: relative;
+        }
+
+        .weight-unit {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #888;
+            font-size: 0.8rem;
+            pointer-events: none;
+        }
+
+        .weight-input {
+            padding-right: 35px !important;
+        }
+
+        .set-group-notes {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #555;
+            border-radius: 5px;
+            background: #1a1a1a;
+            color: #ffffff;
+            resize: none;
+            height: 40px;
+        }
+
+        .remove-set-group {
             background: #e74c3c;
             border: none;
             color: white;
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
+            padding: 8px 12px;
+            border-radius: 5px;
             cursor: pointer;
-            font-size: 18px;
+            font-size: 14px;
         }
 
         .btn {
@@ -293,12 +361,13 @@
             background: #f8f9fa;
         }
 
-        .light-theme .set-item,
+        .light-theme .set-group-item,
         .light-theme .exercise-in-session {
             background: #e9ecef;
         }
 
-        .light-theme .set-item input {
+        .light-theme .input-group input,
+        .light-theme .set-group-notes {
             background: #ffffff;
             color: #333333;
             border-color: #ddd;
@@ -309,9 +378,13 @@
                 padding: 10px;
             }
             
-            .set-item {
-                grid-template-columns: 1fr 1fr;
-                gap: 8px;
+            .header-controls {
+                flex-direction: column;
+                gap: 5px;
+            }
+            
+            .set-group-inputs {
+                grid-template-columns: repeat(2, 1fr);
             }
             
             .data-management {
@@ -328,7 +401,10 @@
     <div class="container">
         <div class="header">
             <h1>Workout Logger</h1>
-            <button class="theme-toggle" onclick="toggleTheme()">☀️ / 🌙</button>
+            <div class="header-controls">
+                <button class="unit-toggle" onclick="toggleUnit()" id="unitToggle">lbs</button>
+                <button class="theme-toggle" onclick="toggleTheme()">☀️ / 🌙</button>
+            </div>
         </div>
 
         <div class="session-status" id="sessionStatus">
@@ -387,16 +463,19 @@
             </div>
 
             <div class="form-group">
-                <label for="notes">Notes (optional)</label>
-                <textarea id="notes" placeholder="Any additional notes..."></textarea>
+                <label for="notes">Exercise Notes (optional)</label>
+                <textarea id="notes" placeholder="Overall exercise notes..."></textarea>
             </div>
 
             <div class="sets-container">
-                <h3>Sets</h3>
-                <div id="setsContainer">
-                    <!-- Sets will be added here -->
+                <h3>Set Groups</h3>
+                <p style="color: #888; font-size: 0.9rem; margin-bottom: 15px;">
+                    Each group represents multiple sets with the same reps/weight
+                </p>
+                <div id="setGroupsContainer">
+                    <!-- Set groups will be added here -->
                 </div>
-                <button class="btn" onclick="addSet()">➕ Add Set</button>
+                <button class="btn btn-warning" onclick="addSetGroup()">➕ Add Set Group</button>
             </div>
 
             <button class="btn btn-success" onclick="addExerciseToSession()">✅ Add Exercise to Session</button>
@@ -422,19 +501,34 @@
     <script>
         let workouts = JSON.parse(localStorage.getItem('workouts')) || [];
         let currentSession = null;
-        let currentSets = [];
+        let currentSetGroups = [];
+        let weightUnit = localStorage.getItem('weightUnit') || 'lbs';
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('workoutDate').valueAsDate = new Date();
+            document.getElementById('unitToggle').textContent = weightUnit;
             displayHistory();
-            addSet(); // Start with one set
+            addSetGroup(); // Start with one set group
             updateSessionStatus();
+            updateWeightUnits();
         });
 
         function toggleTheme() {
             document.body.classList.toggle('light-theme');
             localStorage.setItem('theme', document.body.classList.contains('light-theme') ? 'light' : 'dark');
+        }
+
+        function toggleUnit() {
+            weightUnit = weightUnit === 'lbs' ? 'kg' : 'lbs';
+            localStorage.setItem('weightUnit', weightUnit);
+            document.getElementById('unitToggle').textContent = weightUnit;
+            updateWeightUnits();
+        }
+
+        function updateWeightUnits() {
+            const units = document.querySelectorAll('.weight-unit');
+            units.forEach(unit => unit.textContent = weightUnit);
         }
 
         function startSession() {
@@ -533,9 +627,9 @@
                         <strong>Equipment:</strong> ${exercise.equipment || 'None'}
                     </div>
                     <div>
-                        <strong>Sets:</strong> ${exercise.sets.length} sets
+                        <strong>Total Sets:</strong> ${exercise.sets.length} sets
                         ${exercise.sets.map(set => 
-                            `<br>Set ${set.setNumber}: ${set.reps} reps × ${set.weight}${set.weight > 0 ? 'lbs' : ''} (${set.rest}s rest)`
+                            `<br>Set ${set.setNumber}: ${set.reps} reps × ${set.weight} ${set.unit} (${set.rest}s rest)${set.notes ? ' - ' + set.notes : ''}`
                         ).join('')}
                     </div>
                     ${exercise.notes ? `<div><strong>Notes:</strong> ${exercise.notes}</div>` : ''}
@@ -558,24 +652,52 @@
             }
         }
 
-        function addSet() {
-            const setNumber = currentSets.length + 1;
-            const setDiv = document.createElement('div');
-            setDiv.className = 'set-item';
-            setDiv.innerHTML = `
-                <input type="number" placeholder="Reps" min="0" data-type="reps">
-                <input type="number" placeholder="Weight" min="0" step="0.5" data-type="weight">
-                <input type="number" placeholder="Rest (sec)" min="0" data-type="rest">
-                <button class="remove-set" onclick="removeSet(this)">×</button>
+        function addSetGroup() {
+            const groupNumber = currentSetGroups.length + 1;
+            const setGroupDiv = document.createElement('div');
+            setGroupDiv.className = 'set-group-item';
+            setGroupDiv.innerHTML = `
+                <div class="set-group-header">
+                    <span class="set-group-title">Set Group ${groupNumber}</span>
+                    <button class="remove-set-group" onclick="removeSetGroup(this)">Remove</button>
+                </div>
+                <div class="set-group-inputs">
+                    <div class="input-group">
+                        <label>Sets</label>
+                        <input type="number" placeholder="3" min="1" data-type="sets">
+                    </div>
+                    <div class="input-group">
+                        <label>Reps</label>
+                        <input type="number" placeholder="12" min="0" data-type="reps">
+                    </div>
+                    <div class="input-group">
+                        <label>Weight</label>
+                        <div class="weight-input-wrapper">
+                            <input type="number" placeholder="45" min="0" step="0.5" class="weight-input" data-type="weight">
+                            <span class="weight-unit">${weightUnit}</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>Rest (sec)</label>
+                        <input type="number" placeholder="60" min="0" data-type="rest">
+                    </div>
+                </div>
+                <textarea class="set-group-notes" placeholder="Notes for this set group (e.g., '45 + 10', 'drop set', etc.)" data-type="notes"></textarea>
             `;
-            document.getElementById('setsContainer').appendChild(setDiv);
-            currentSets.push({reps: '', weight: '', rest: ''});
+            document.getElementById('setGroupsContainer').appendChild(setGroupDiv);
+            currentSetGroups.push({sets: '', reps: '', weight: '', rest: '', notes: ''});
+            updateWeightUnits();
         }
 
-        function removeSet(button) {
-            if (currentSets.length > 1) {
-                button.parentElement.remove();
-                currentSets.pop();
+        function removeSetGroup(button) {
+            if (currentSetGroups.length > 1) {
+                button.closest('.set-group-item').remove();
+                currentSetGroups.pop();
+                // Renumber groups
+                const groups = document.querySelectorAll('.set-group-title');
+                groups.forEach((title, index) => {
+                    title.textContent = `Set Group ${index + 1}`;
+                });
             }
         }
 
@@ -604,27 +726,35 @@
                 }
             }
 
-            // Collect set data
-            const setInputs = document.querySelectorAll('.set-item');
-            const sets = [];
+            // Collect set group data and expand to individual sets
+            const setGroupInputs = document.querySelectorAll('.set-group-item');
+            const allSets = [];
+            let setCounter = 1;
             
-            setInputs.forEach((setDiv, index) => {
-                const reps = setDiv.querySelector('[data-type="reps"]').value;
-                const weight = setDiv.querySelector('[data-type="weight"]').value;
-                const rest = setDiv.querySelector('[data-type="rest"]').value;
+            setGroupInputs.forEach((groupDiv) => {
+                const sets = parseInt(groupDiv.querySelector('[data-type="sets"]').value) || 0;
+                const reps = groupDiv.querySelector('[data-type="reps"]').value;
+                const weight = groupDiv.querySelector('[data-type="weight"]').value;
+                const rest = groupDiv.querySelector('[data-type="rest"]').value;
+                const groupNotes = groupDiv.querySelector('[data-type="notes"]').value;
                 
-                if (reps) {
-                    sets.push({
-                        setNumber: index + 1,
-                        reps: reps || '0',
-                        weight: weight || '0',
-                        rest: rest || '0'
-                    });
+                if (sets > 0 && reps) {
+                    // Create individual sets from the group
+                    for (let i = 0; i < sets; i++) {
+                        allSets.push({
+                            setNumber: setCounter++,
+                            reps: reps,
+                            weight: weight || '0',
+                            unit: weightUnit,
+                            rest: rest || '0',
+                            notes: groupNotes || ''
+                        });
+                    }
                 }
             });
 
-            if (sets.length === 0) {
-                alert('Please add at least one set with reps');
+            if (allSets.length === 0) {
+                alert('Please add at least one set group with sets and reps');
                 return;
             }
 
@@ -634,7 +764,7 @@
                 exerciseName,
                 equipment,
                 notes,
-                sets
+                sets: allSets
             };
 
             currentSession.exercises.push(exercise);
@@ -652,9 +782,9 @@
             document.getElementById('exerciseName').value = '';
             document.getElementById('equipment').value = '';
             document.getElementById('notes').value = '';
-            document.getElementById('setsContainer').innerHTML = '';
-            currentSets = [];
-            addSet();
+            document.getElementById('setGroupsContainer').innerHTML = '';
+            currentSetGroups = [];
+            addSetGroup();
         }
 
         function displayHistory() {
@@ -691,7 +821,7 @@
                                 ${exercise.notes ? `<br><em>${exercise.notes}</em>` : ''}
                                 <div class="set-details">
                                     ${exercise.sets.map(set => 
-                                        `Set ${set.setNumber}: ${set.reps} reps × ${set.weight}${set.weight > 0 ? 'lbs' : ''} (${set.rest}s rest)`
+                                        `Set ${set.setNumber}: ${set.reps} reps × ${set.weight} ${set.unit || 'lbs'} (${set.rest}s rest)${set.notes ? ' - ' + set.notes : ''}`
                                     ).join('<br>')}
                                 </div>
                             </div>
@@ -718,11 +848,11 @@
                 return new Date(b.date) - new Date(a.date);
             });
 
-            const csvHeader = 'Muscle Group,Date,Exercise Name,Equipment,Set #,Reps,Weight,Rest Time,Notes\n';
+            const csvHeader = 'Muscle Group,Date,Exercise Name,Equipment,Set #,Reps,Weight,Unit,Rest Time,Notes\n';
             const csvData = sortedWorkouts.map(workout => 
                 workout.exercises.map(exercise =>
                     exercise.sets.map(set => 
-                        `${exercise.muscleGroup},${workout.date},${exercise.exerciseName},"${exercise.equipment}",${set.setNumber},${set.reps},${set.weight},${set.rest},"${exercise.notes}"`
+                        `${exercise.muscleGroup},${workout.date},${exercise.exerciseName},"${exercise.equipment || ''}",${set.setNumber},${set.reps},${set.weight},${set.unit || 'lbs'},${set.rest},"${set.notes || ''}"`
                     ).join('\n')
                 ).join('\n')
             ).join('\n');
@@ -759,7 +889,7 @@
                         if (lines[i].trim()) {
                             const data = parseCSVLine(lines[i]);
                             if (data.length >= 9) {
-                                const [muscleGroup, date, exerciseName, equipment, setNum, reps, weight, rest, notes] = data;
+                                const [muscleGroup, date, exerciseName, equipment, setNum, reps, weight, unit, rest, notes] = data;
                                 
                                 const workoutKey = `${date}_${muscleGroup}`;
                                 
@@ -778,7 +908,7 @@
                                         muscleGroup,
                                         exerciseName,
                                         equipment: equipment.replace(/"/g, ''),
-                                        notes: notes.replace(/"/g, ''),
+                                        notes: '',
                                         sets: []
                                     };
                                     importedWorkouts[workoutKey].exercises.push(exercise);
@@ -788,7 +918,9 @@
                                     setNumber: parseInt(setNum),
                                     reps: reps,
                                     weight: weight,
-                                    rest: rest
+                                    unit: unit || 'lbs',
+                                    rest: rest,
+                                    notes: notes.replace(/"/g, '')
                                 });
                             }
                         }
@@ -841,7 +973,7 @@
             }
         }
 
-        // Load saved theme
+        // Load saved theme and weight unit
         if (localStorage.getItem('theme') === 'light') {
             document.body.classList.add('light-theme');
         }
