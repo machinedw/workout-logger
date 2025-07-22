@@ -52,6 +52,57 @@
             font-size: 1.2rem;
         }
 
+        .session-status {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid #27ae60;
+        }
+
+        .session-status.inactive {
+            border-left-color: #e74c3c;
+        }
+
+        .session-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .current-session {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .current-session.active {
+            display: block;
+        }
+
+        .exercise-in-session {
+            background: #333;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 3px solid #4a90e2;
+        }
+
+        .exercise-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .exercise-name {
+            font-weight: bold;
+            color: #4a90e2;
+        }
+
         .form-group {
             margin-bottom: 20px;
         }
@@ -152,6 +203,21 @@
             background: #c0392b;
         }
 
+        .btn-warning {
+            background: #f39c12;
+        }
+
+        .btn-warning:hover {
+            background: #d68910;
+        }
+
+        .session-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 20px 0;
+        }
+
         .workout-history {
             margin-top: 40px;
         }
@@ -185,7 +251,13 @@
         }
 
         .exercise-details {
-            margin-top: 10px;
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px solid #444;
+        }
+
+        .exercise-summary {
+            margin-bottom: 15px;
         }
 
         .set-details {
@@ -215,11 +287,14 @@
         }
 
         .light-theme .sets-container,
-        .light-theme .workout-item {
+        .light-theme .workout-item,
+        .light-theme .session-status,
+        .light-theme .current-session {
             background: #f8f9fa;
         }
 
-        .light-theme .set-item {
+        .light-theme .set-item,
+        .light-theme .exercise-in-session {
             background: #e9ecef;
         }
 
@@ -242,6 +317,10 @@
             .data-management {
                 grid-template-columns: 1fr;
             }
+
+            .session-controls {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -252,8 +331,28 @@
             <button class="theme-toggle" onclick="toggleTheme()">☀️ / 🌙</button>
         </div>
 
-        <div class="workout-form">
-            <h2>Log Workout</h2>
+        <div class="session-status" id="sessionStatus">
+            <div class="session-header">
+                <span><strong>Workout Session:</strong> <span id="sessionState">Not Started</span></span>
+                <span id="sessionDate"></span>
+            </div>
+            <div id="sessionMuscleGroup" style="display: none;">
+                <strong>Muscle Group:</strong> <span id="currentMuscleGroup"></span>
+            </div>
+        </div>
+
+        <div class="session-controls">
+            <button class="btn btn-success" id="startSessionBtn" onclick="startSession()">🏋️ Start Workout</button>
+            <button class="btn btn-danger" id="endSessionBtn" onclick="endSession()" style="display: none;">✅ End Workout</button>
+        </div>
+
+        <div class="current-session" id="currentSessionDiv">
+            <h3>Current Session Exercises</h3>
+            <div id="sessionExercises"></div>
+        </div>
+
+        <div class="workout-form" id="exerciseForm" style="display: none;">
+            <h2>Add Exercise</h2>
             
             <div class="form-group">
                 <label for="workoutDate">Date</label>
@@ -279,7 +378,7 @@
 
             <div class="form-group">
                 <label for="exerciseName">Exercise Name</label>
-                <input type="text" id="exerciseName" placeholder="e.g., Bench Press">
+                <input type="text" id="exerciseName" placeholder="e.g., Bench Press, Barbell Rows">
             </div>
 
             <div class="form-group">
@@ -300,7 +399,7 @@
                 <button class="btn" onclick="addSet()">➕ Add Set</button>
             </div>
 
-            <button class="btn btn-success" onclick="finishExercise()">✅ Finish Exercise</button>
+            <button class="btn btn-success" onclick="addExerciseToSession()">✅ Add Exercise to Session</button>
         </div>
 
         <div class="data-management">
@@ -314,7 +413,7 @@
             <h2>Workout History</h2>
             <div id="historyContainer">
                 <p style="text-align: center; color: #888; margin: 40px 0;">
-                    No workouts logged yet. Start by adding your first exercise!
+                    No workouts logged yet. Start your first workout session!
                 </p>
             </div>
         </div>
@@ -322,6 +421,7 @@
 
     <script>
         let workouts = JSON.parse(localStorage.getItem('workouts')) || [];
+        let currentSession = null;
         let currentSets = [];
 
         // Initialize
@@ -329,11 +429,133 @@
             document.getElementById('workoutDate').valueAsDate = new Date();
             displayHistory();
             addSet(); // Start with one set
+            updateSessionStatus();
         });
 
         function toggleTheme() {
             document.body.classList.toggle('light-theme');
             localStorage.setItem('theme', document.body.classList.contains('light-theme') ? 'light' : 'dark');
+        }
+
+        function startSession() {
+            const date = document.getElementById('workoutDate').value;
+            if (!date) {
+                alert('Please select a date for your workout');
+                return;
+            }
+
+            currentSession = {
+                date: date,
+                exercises: [],
+                timestamp: new Date().getTime()
+            };
+
+            document.getElementById('startSessionBtn').style.display = 'none';
+            document.getElementById('endSessionBtn').style.display = 'block';
+            document.getElementById('exerciseForm').style.display = 'block';
+            document.getElementById('currentSessionDiv').classList.add('active');
+            
+            updateSessionStatus();
+        }
+
+        function endSession() {
+            if (!currentSession || currentSession.exercises.length === 0) {
+                alert('Please add at least one exercise to your workout session');
+                return;
+            }
+
+            // Save the workout session
+            workouts.push(currentSession);
+            localStorage.setItem('workouts', JSON.stringify(workouts));
+
+            // Reset session
+            currentSession = null;
+            document.getElementById('startSessionBtn').style.display = 'block';
+            document.getElementById('endSessionBtn').style.display = 'none';
+            document.getElementById('exerciseForm').style.display = 'none';
+            document.getElementById('currentSessionDiv').classList.remove('active');
+            
+            // Clear form
+            clearExerciseForm();
+            
+            updateSessionStatus();
+            displayHistory();
+            displayCurrentSession();
+            
+            alert('Workout session completed and saved!');
+        }
+
+        function updateSessionStatus() {
+            const statusDiv = document.getElementById('sessionStatus');
+            const stateSpan = document.getElementById('sessionState');
+            const dateSpan = document.getElementById('sessionDate');
+            const muscleGroupDiv = document.getElementById('sessionMuscleGroup');
+            const muscleGroupSpan = document.getElementById('currentMuscleGroup');
+
+            if (currentSession) {
+                statusDiv.classList.remove('inactive');
+                stateSpan.textContent = 'In Progress';
+                dateSpan.textContent = currentSession.date;
+                
+                if (currentSession.exercises.length > 0) {
+                    const muscleGroup = currentSession.exercises[0].muscleGroup;
+                    muscleGroupDiv.style.display = 'block';
+                    muscleGroupSpan.textContent = muscleGroup;
+                    
+                    // Lock muscle group selection
+                    document.getElementById('muscleGroup').value = muscleGroup;
+                    document.getElementById('muscleGroup').disabled = true;
+                }
+            } else {
+                statusDiv.classList.add('inactive');
+                stateSpan.textContent = 'Not Started';
+                dateSpan.textContent = '';
+                muscleGroupDiv.style.display = 'none';
+                document.getElementById('muscleGroup').disabled = false;
+            }
+        }
+
+        function displayCurrentSession() {
+            const container = document.getElementById('sessionExercises');
+            
+            if (!currentSession || currentSession.exercises.length === 0) {
+                container.innerHTML = '<p style="color: #888; text-align: center;">No exercises added yet</p>';
+                return;
+            }
+
+            container.innerHTML = currentSession.exercises.map((exercise, index) => `
+                <div class="exercise-in-session">
+                    <div class="exercise-header">
+                        <span class="exercise-name">${exercise.exerciseName}</span>
+                        <button class="btn btn-danger" style="width: auto; padding: 5px 10px; margin: 0;" onclick="removeExerciseFromSession(${index})">Remove</button>
+                    </div>
+                    <div>
+                        <strong>Equipment:</strong> ${exercise.equipment || 'None'}
+                    </div>
+                    <div>
+                        <strong>Sets:</strong> ${exercise.sets.length} sets
+                        ${exercise.sets.map(set => 
+                            `<br>Set ${set.setNumber}: ${set.reps} reps × ${set.weight}${set.weight > 0 ? 'lbs' : ''} (${set.rest}s rest)`
+                        ).join('')}
+                    </div>
+                    ${exercise.notes ? `<div><strong>Notes:</strong> ${exercise.notes}</div>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function removeExerciseFromSession(index) {
+            if (confirm('Remove this exercise from the current session?')) {
+                currentSession.exercises.splice(index, 1);
+                displayCurrentSession();
+                
+                // If no exercises left, unlock muscle group
+                if (currentSession.exercises.length === 0) {
+                    document.getElementById('muscleGroup').disabled = false;
+                    document.getElementById('muscleGroup').value = '';
+                }
+                
+                updateSessionStatus();
+            }
         }
 
         function addSet() {
@@ -357,16 +579,29 @@
             }
         }
 
-        function finishExercise() {
-            const date = document.getElementById('workoutDate').value;
+        function addExerciseToSession() {
+            if (!currentSession) {
+                alert('Please start a workout session first');
+                return;
+            }
+
             const muscleGroup = document.getElementById('muscleGroup').value;
             const exerciseName = document.getElementById('exerciseName').value;
             const equipment = document.getElementById('equipment').value;
             const notes = document.getElementById('notes').value;
 
-            if (!date || !muscleGroup || !exerciseName) {
-                alert('Please fill in Date, Muscle Group, and Exercise Name');
+            if (!muscleGroup || !exerciseName) {
+                alert('Please fill in Muscle Group and Exercise Name');
                 return;
+            }
+
+            // Check if this is the first exercise - if so, lock muscle group
+            if (currentSession.exercises.length > 0) {
+                const sessionMuscleGroup = currentSession.exercises[0].muscleGroup;
+                if (muscleGroup !== sessionMuscleGroup) {
+                    alert(`This session is for ${sessionMuscleGroup}. Please select ${sessionMuscleGroup} or end this session to start a new one.`);
+                    return;
+                }
             }
 
             // Collect set data
@@ -393,44 +628,50 @@
                 return;
             }
 
-            // Save workout
-            const workout = {
-                date,
+            // Add exercise to current session
+            const exercise = {
                 muscleGroup,
                 exerciseName,
                 equipment,
                 notes,
-                sets,
-                timestamp: new Date().getTime()
+                sets
             };
 
-            workouts.push(workout);
-            localStorage.setItem('workouts', JSON.stringify(workouts));
-
+            currentSession.exercises.push(exercise);
+            
             // Clear form
+            clearExerciseForm();
+            
+            displayCurrentSession();
+            updateSessionStatus();
+            
+            alert('Exercise added to session!');
+        }
+
+        function clearExerciseForm() {
             document.getElementById('exerciseName').value = '';
             document.getElementById('equipment').value = '';
             document.getElementById('notes').value = '';
             document.getElementById('setsContainer').innerHTML = '';
             currentSets = [];
             addSet();
-
-            displayHistory();
-            alert('Exercise saved successfully!');
         }
 
         function displayHistory() {
             const container = document.getElementById('historyContainer');
             
             if (workouts.length === 0) {
-                container.innerHTML = '<p style="text-align: center; color: #888; margin: 40px 0;">No workouts logged yet. Start by adding your first exercise!</p>';
+                container.innerHTML = '<p style="text-align: center; color: #888; margin: 40px 0;">No workouts logged yet. Start your first workout session!</p>';
                 return;
             }
 
-            // Sort workouts: by muscle group, then by date descending
+            // Sort workouts: by muscle group of first exercise, then by date descending
             const sortedWorkouts = [...workouts].sort((a, b) => {
-                if (a.muscleGroup !== b.muscleGroup) {
-                    return a.muscleGroup.localeCompare(b.muscleGroup);
+                const aMuscleGroup = a.exercises[0]?.muscleGroup || '';
+                const bMuscleGroup = b.exercises[0]?.muscleGroup || '';
+                
+                if (aMuscleGroup !== bMuscleGroup) {
+                    return aMuscleGroup.localeCompare(bMuscleGroup);
                 }
                 return new Date(b.date) - new Date(a.date);
             });
@@ -439,17 +680,22 @@
                 <div class="workout-item">
                     <div class="workout-header">
                         <span class="workout-date">${workout.date}</span>
-                        <span class="muscle-group">${workout.muscleGroup}</span>
+                        <span class="muscle-group">${workout.exercises[0]?.muscleGroup || 'Mixed'}</span>
                     </div>
                     <div class="exercise-details">
-                        <strong>${workout.exerciseName}</strong>
-                        ${workout.equipment ? ` - ${workout.equipment}` : ''}
-                        ${workout.notes ? `<br><em>${workout.notes}</em>` : ''}
-                    </div>
-                    <div class="set-details">
-                        ${workout.sets.map(set => 
-                            `Set ${set.setNumber}: ${set.reps} reps × ${set.weight}${set.weight > 0 ? 'lbs' : ''} (${set.rest}s rest)`
-                        ).join('<br>')}
+                        <strong>Workout Session (${workout.exercises.length} exercises)</strong>
+                        ${workout.exercises.map(exercise => `
+                            <div class="exercise-summary">
+                                <strong>${exercise.exerciseName}</strong>
+                                ${exercise.equipment ? ` - ${exercise.equipment}` : ''}
+                                ${exercise.notes ? `<br><em>${exercise.notes}</em>` : ''}
+                                <div class="set-details">
+                                    ${exercise.sets.map(set => 
+                                        `Set ${set.setNumber}: ${set.reps} reps × ${set.weight}${set.weight > 0 ? 'lbs' : ''} (${set.rest}s rest)`
+                                    ).join('<br>')}
+                                </div>
+                            </div>
+                        `).join('')}
                     </div>
                 </div>
             `).join('');
@@ -463,16 +709,21 @@
 
             // Sort workouts by muscle group, then by date descending
             const sortedWorkouts = [...workouts].sort((a, b) => {
-                if (a.muscleGroup !== b.muscleGroup) {
-                    return a.muscleGroup.localeCompare(b.muscleGroup);
+                const aMuscleGroup = a.exercises[0]?.muscleGroup || '';
+                const bMuscleGroup = b.exercises[0]?.muscleGroup || '';
+                
+                if (aMuscleGroup !== bMuscleGroup) {
+                    return aMuscleGroup.localeCompare(bMuscleGroup);
                 }
                 return new Date(b.date) - new Date(a.date);
             });
 
             const csvHeader = 'Muscle Group,Date,Exercise Name,Equipment,Set #,Reps,Weight,Rest Time,Notes\n';
             const csvData = sortedWorkouts.map(workout => 
-                workout.sets.map(set => 
-                    `${workout.muscleGroup},${workout.date},${workout.exerciseName},"${workout.equipment}",${set.setNumber},${set.reps},${set.weight},${set.rest},"${workout.notes}"`
+                workout.exercises.map(exercise =>
+                    exercise.sets.map(set => 
+                        `${exercise.muscleGroup},${workout.date},${exercise.exerciseName},"${exercise.equipment}",${set.setNumber},${set.reps},${set.weight},${set.rest},"${exercise.notes}"`
+                    ).join('\n')
                 ).join('\n')
             ).join('\n');
 
@@ -501,7 +752,7 @@
                 try {
                     const csv = e.target.result;
                     const lines = csv.split('\n');
-                    const importedWorkouts = [];
+                    const importedWorkouts = {};
                     
                     // Skip header row
                     for (let i = 1; i < lines.length; i++) {
@@ -510,24 +761,30 @@
                             if (data.length >= 9) {
                                 const [muscleGroup, date, exerciseName, equipment, setNum, reps, weight, rest, notes] = data;
                                 
-                                let workout = importedWorkouts.find(w => 
-                                    w.date === date && w.exerciseName === exerciseName && w.muscleGroup === muscleGroup
-                                );
+                                const workoutKey = `${date}_${muscleGroup}`;
                                 
-                                if (!workout) {
-                                    workout = {
+                                if (!importedWorkouts[workoutKey]) {
+                                    importedWorkouts[workoutKey] = {
                                         date,
+                                        exercises: [],
+                                        timestamp: new Date().getTime()
+                                    };
+                                }
+                                
+                                let exercise = importedWorkouts[workoutKey].exercises.find(e => e.exerciseName === exerciseName);
+                                
+                                if (!exercise) {
+                                    exercise = {
                                         muscleGroup,
                                         exerciseName,
                                         equipment: equipment.replace(/"/g, ''),
                                         notes: notes.replace(/"/g, ''),
-                                        sets: [],
-                                        timestamp: new Date().getTime()
+                                        sets: []
                                     };
-                                    importedWorkouts.push(workout);
+                                    importedWorkouts[workoutKey].exercises.push(exercise);
                                 }
                                 
-                                workout.sets.push({
+                                exercise.sets.push({
                                     setNumber: parseInt(setNum),
                                     reps: reps,
                                     weight: weight,
@@ -537,10 +794,11 @@
                         }
                     }
                     
-                    workouts = workouts.concat(importedWorkouts);
+                    const importedArray = Object.values(importedWorkouts);
+                    workouts = workouts.concat(importedArray);
                     localStorage.setItem('workouts', JSON.stringify(workouts));
                     displayHistory();
-                    alert(`Successfully imported ${importedWorkouts.length} workouts!`);
+                    alert(`Successfully imported ${importedArray.length} workout sessions!`);
                 } catch (error) {
                     alert('Error importing file. Please check the CSV format.');
                 }
@@ -571,8 +829,14 @@
         function clearAllData() {
             if (confirm('Are you sure you want to delete all workout data? This cannot be undone.')) {
                 workouts = [];
+                currentSession = null;
                 localStorage.setItem('workouts', JSON.stringify(workouts));
                 displayHistory();
+                updateSessionStatus();
+                document.getElementById('startSessionBtn').style.display = 'block';
+                document.getElementById('endSessionBtn').style.display = 'none';
+                document.getElementById('exerciseForm').style.display = 'none';
+                document.getElementById('currentSessionDiv').classList.remove('active');
                 alert('All data cleared successfully!');
             }
         }
